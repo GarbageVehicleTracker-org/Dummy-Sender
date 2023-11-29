@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coordinate Sender</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        #output {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <input type="file" id="fileInput" accept=".json">
+    <button onclick="startSending()">Start Sending</button>
+    <div id="output"></div>
+
+    <script>
+        let coordinates = [];
+        let currentIndex = 0;
+        let sentCount = 0;
+
+        function readJsonFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const json = JSON.parse(event.target.result);
+                        resolve(json.coordinates);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.readAsText(file);
+            });
+        }
+
+        function sendCoordinates() {
+            if (currentIndex < coordinates.length) {
+                const coordinate = coordinates[currentIndex];
+                fetch("https://garbage-collect-backend.onrender.com/send-real-coordinates/WB7777655", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        latitude: coordinate.latitude["$numberDouble"],
+                        longitude: coordinate.longitude["$numberDouble"],
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const outputDiv = document.getElementById("output");
+                    outputDiv.innerHTML += `Sent #${sentCount + 1}: ${JSON.stringify(data)}<br>`;
+                    outputDiv.innerHTML += `Recently sent coordinates: ${JSON.stringify(coordinate)}<br>`;
+                    sentCount++;
+                    currentIndex++;
+                    setTimeout(sendCoordinates, 100); // Send next coordinate after 1 second
+                })
+                .catch(error => {
+                    const outputDiv = document.getElementById("output");
+                    outputDiv.innerHTML += `Error: ${error}<br>`;
+                });
+            } else {
+                currentIndex = 0;
+                coordinates = []; // Reset coordinates
+            }
+        }
+
+        function startSending() {
+            const fileInput = document.getElementById("fileInput");
+            const file = fileInput.files[0];
+
+            if (file) {
+                readJsonFile(file)
+                    .then(data => {
+                        coordinates = data;
+                        sentCount = 0;
+                        sendCoordinates(); // Start sending coordinates
+                    })
+                    .catch(error => {
+                        const outputDiv = document.getElementById("output");
+                        outputDiv.innerHTML = `Error reading JSON file: ${error}`;
+                    });
+            } else {
+                alert("Please choose a JSON file.");
+            }
+        }
+    </script>
+</body>
+</html>
